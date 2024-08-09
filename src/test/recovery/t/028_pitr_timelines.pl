@@ -195,10 +195,20 @@ recovery_target_timeline = 'current'
 my $log_offset = -s $node_pitr3->logfile;
 $node_pitr3->start;
 
-ok( $node_pitr3->log_contains(
-		"restored log file \"000000010000000000000003.partial\" from archive",
-		$log_offset),
-	"restored 000000010000000000000003.partial");
+my $msg_logged = 0;
+my $max_attempts = $PostgreSQL::Test::Utils::timeout_default;
+while ($max_attempts-- >= 0)
+{
+	if ($node_pitr3->log_contains(
+			"restored log file \"000000010000000000000003.partial\" from archive",
+			$log_offset))
+	{
+		$msg_logged = 1;
+		last;
+	}
+	sleep 1;
+}
+ok($msg_logged, "restored 000000010000000000000003.partial");
 
 # Wait until recovery finishes.
 $node_pitr3->poll_query_until('postgres', "SELECT pg_is_in_recovery() = 'f';")
